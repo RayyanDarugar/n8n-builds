@@ -8,6 +8,6 @@ I probably spent more time making automations here than it wouldve taken me to m
 
 These will need access to n8n, plus accounts with the other services that each workflow uses. If you use a different tool like Make.com or Zapier, theoretically you can import the JSONs the same way but there will be a lot of bugs to work out. 
 
-Enjoy, contact me if there's anything you need! (rayyandarugar@[EMAIL_ADDRESS])
+Enjoy, contact me if there's anything you need! (rayyandarugar@gmail.com)
 
 
