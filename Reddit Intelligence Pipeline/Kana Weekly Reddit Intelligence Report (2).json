@@ -1,0 +1,252 @@
+{
+  "name": "Kana Weekly Reddit Intelligence Report",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 7
+            }
+          ]
+        }
+      },
+      "id": "432a17b3-76d6-4520-9003-556fa1b99e34",
+      "name": "Every Monday 7am",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -176,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apify.com/v2/acts/trudax~reddit-scraper-lite/runs?token=[YOUR-TOKEN-HERE]",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"startUrls\": [\n    {\"url\": \"https://www.reddit.com/r/MarketingandAI/top/?t=week\"},\n    {\"url\": \"https://www.reddit.com/r/agenticmarketing/top/?t=week\"},\n    {\"url\": \"https://www.reddit.com/r/AI_Agents/top/?t=week\"}\n  ],\n  \"maxItems\": 150,\n  \"skipComments\": false,\n  \"postsPerPage\": 50,\n  \"commentsPerPage\": 15\n}",
+        "options": {}
+      },
+      "id": "1755478b-62c7-4ef8-9c12-3839bdeaef7c",
+      "name": "Start Apify Run",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        48,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 3,
+        "unit": "minutes"
+      },
+      "id": "f4dff5f3-334d-4020-84cc-2cd553676bcf",
+      "name": "Wait 3 Minutes",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        272,
+        -208
+      ],
+      "webhookId": "wait-webhook-kana-reddit"
+    },
+    {
+      "parameters": {
+        "url": "=https://api.apify.com/v2/acts/trudax~reddit-scraper-lite/runs/last/dataset/items?token=[YOUR-TOKEN-HERE]&limit=150",
+        "options": {}
+      },
+      "id": "65a58696-c67e-4bdd-9230-7a5d308c80eb",
+      "name": "Fetch Reddit Dataset",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        496,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const items = $input.all();\nconst posts = items.map(item => item.json);\n\n// Keep only fields Claude needs, truncate body to save tokens\nconst cleaned = posts\n  .filter(p => p.body && p.body !== '[removed]')\n  .map(p => ({\n    type: p.dataType,\n    title: p.title || null,\n    body: p.body ? p.body.substring(0, 600) : null,\n    upvotes: p.upVotes,\n    numComments: p.numberOfComments || null,\n    community: p.communityName,\n  }));\n\n// Cap at 120 items to stay within Claude token limits\nconst trimmed = cleaned.slice(0, 120);\n\nreturn [{ json: { posts: JSON.stringify(trimmed) } }];"
+      },
+      "id": "d8dc63d0-bf6a-4cab-9129-92ef4125aa9d",
+      "name": "Clean & Prep Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        704,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const response = $input.first().json;\n\n// Extract Claude's response and strip markdown code fences\nlet reportHtml = response.content[0].text;\nreportHtml = reportHtml.replace(/^```html\\n?/, '').replace(/\\n?```$/, '').trim();\n\nconst now = new Date();\nconst dateStr = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });\n\nreturn [{\n  json: {\n    reportHtml,\n    subject: `Kana Weekly Reddit Intelligence Report — ${dateStr}`\n  }\n}];"
+      },
+      "id": "262f9b50-cac7-44ee-a3b0-a08ca97c2825",
+      "name": "Extract Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1232,
+        -208
+      ]
+    },
+    {
+      "parameters": {
+        "sendTo": "rayyan@superset.com, jessica@kana.ai, sam@kana.ai, tanmay@kana.ai, fisher@kana.ai",
+        "subject": "={{ $json.subject }}",
+        "message": "={{ $json.reportHtml }}",
+        "options": {}
+      },
+      "id": "99351ff0-45a2-4daf-bbe4-bcacd1311131",
+      "name": "Send Email Report",
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1440,
+        -208
+      ],
+      "webhookId": "6f32db8c-b277-490a-a6c6-be52d8e7e769",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "xldWotMnl9II3t67",
+          "name": "Gmail OAuth2 API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "claude-sonnet-4-6",
+          "mode": "list",
+          "cachedResultName": "claude-sonnet-4-6"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are analyzing weekly Reddit data for Kana, an enterprise AI marketing solution. Kana has 8 products, and your analysis should draw on whichever ones are relevant. \n\n1. Marketing Intelligence \n\n2. Campaign Management \n\n3. Answer Engine Optimization (AEO) \n\n4. Customer Engagement \n\n5. Synthetic Data Generation \n\n6. Media Proposal Generator \n\n7. Category Intelligence Hub \n\n8. Audience Manager \n\nThe three subreddits monitored are r/MarketingandAI, r/agenticmarketing, and r/AI_Agents. Produce a structured weekly intelligence report with these exact sections: \n\n1. TOP 5 THEMES — recurring topics this week, each with a 2-3 sentence explanation and which Kana product(s) it maps to. Make these aesthetically seperated out with cards, and add quotes from Reddit to back each up.\n\n2. FAQ CANDIDATES — 6 questions people are literally asking, phrased as queries Kana's platform should own answers to \n\n3. CONTENT ANGLES — 5 topics phrased as the exact query a buyer would type into an answer engine, each tied to the relevant Kana product(s) \n\n4. BLOG / CONTENT IDEAS — 3 specific post titles with a one-line brief \n\n5. NOTABLE SIGNAL — one standout post, quote, or trend worth acting on immediately, with a note on how Kana relates to it and why it matters \n\nFormat the output as a professional, aesthetic HTML email using ONLY inline styles (no <style> tags, no CSS classes — Gmail strips them). Use a dark navy gradient header, white card sections, clean sans-serif font, emoji section icons All styling must be on individual elements via the style attribute. Include the week date in the header. \n\nHere is this week's Reddit data: {{ $json.posts }}"
+            }
+          ]
+        },
+        "simplify": false,
+        "options": {
+          "maxTokens": 20000
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.anthropic",
+      "typeVersion": 1,
+      "position": [
+        928,
+        -208
+      ],
+      "id": "cd6ccb74-21fc-408b-958d-f805c4a581e4",
+      "name": "Message a model",
+      "credentials": {
+        "anthropicApi": {
+          "id": "m68suvcU3EXkZJhh",
+          "name": "Anthropic account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Every Monday 7am": {
+      "main": [
+        [
+          {
+            "node": "Start Apify Run",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Apify Run": {
+      "main": [
+        [
+          {
+            "node": "Wait 3 Minutes",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait 3 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Fetch Reddit Dataset",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Reddit Dataset": {
+      "main": [
+        [
+          {
+            "node": "Clean & Prep Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean & Prep Data": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Report": {
+      "main": [
+        [
+          {
+            "node": "Send Email Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Extract Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "242de454-f38f-4367-a3f4-119d91fa882f",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "d6108346ea3eff253d2f594042772a3f74c702fa1c47a44609362609adbe7f30"
+  },
+  "nodeGroups": [],
+  "id": "bgyFIrwAS9O2kd4A",
+  "tags": []
+}
